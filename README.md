@@ -1,28 +1,51 @@
 # StockFlow API
 
-An educational inventory REST API built with ASP.NET Core 8, EF Core and SQL Server.
+Inventory management REST API using C#, ASP.NET Core 8, EF Core and SQL Server.
 
-## Quick start
-Install the .NET 8 SDK and start a SQL Server instance. Create an empty database named StockFlow or allow the development account to create it. Set these environment variables (use your own credentials; never commit secrets):
+## Features
+- Register products with unique SKU codes.
+- Record stock receipts and withdrawals.
+- Reject withdrawals that would create negative inventory.
+- Find low-stock products and inspect transaction history.
+- SQL Server row-version concurrency protection.
+- Swagger interactive API documentation.
+
+## Run locally with Docker
+Requires Docker Compose and a platform supported by the SQL Server container (x86-64 recommended).
+
+1. Copy .env.example to .env and replace the example password with a strong local password. Do not commit .env.
+2. Run:
 
 ```bash
-export ConnectionStrings__Inventory='Server=localhost,1433;Database=StockFlow;User Id=YOUR_USER;Password=YOUR_PASSWORD;TrustServerCertificate=True'
-export InitializeDatabase=true
-dotnet run --urls http://localhost:5080
+docker compose up --build -d
 ```
 
-Open http://localhost:5080/swagger to explore endpoints.
+3. Once the database and API are ready, open http://localhost:5080/swagger.
 
-## Example workflow
+The service is intentionally bound to localhost. The database volume persists between restarts. Use docker compose down to stop the services; docker compose down -v also deletes stored data.
+
+## Example
+Create a product through POST /products:
+
+```json
+{"name":"Notebook","sku":"NB-001","reorderLevel":5}
+```
+
+Use its returned ID to post {"delta":20} to /products/{id}/movements. Negative deltas represent withdrawals.
+
+## Integration test
+With the Docker services running, execute:
+
 ```bash
-curl -X POST http://localhost:5080/products -H 'Content-Type: application/json' -d '{"name":"Notebook","sku":"NB-001","reorderLevel":5}'
-curl -X POST http://localhost:5080/products/1/movements -H 'Content-Type: application/json' -d '{"delta":20}'
-curl http://localhost:5080/products
+python scripts/smoke.py
 ```
 
-Use the returned product ID instead of 1 if necessary. Negative deltas represent stock withdrawals. SQL Server row-version concurrency control prevents silent lost updates. Stock changes and movement records are saved together.
+The test covers creation, receipts, withdrawals, invalid negative stock, transaction history and low-stock filtering. It creates a uniquely named test product each time.
 
-## Status and limitations
-Initial MVP; CI is configured for compilation, not verified here. No authentication, role authorization, migrations, Docker deployment or automated integration tests yet. Run locally only; do not expose this unauthenticated API publicly. Database initialization uses EnsureCreated for demonstration only.
+## Architecture
+Client → ASP.NET Core API → Entity Framework Core → SQL Server
+
+## Limitations
+Local educational application. Authentication, role-based authorization, migrations and full product CRUD are not yet implemented. Do not expose the unauthenticated service to the internet. EnsureCreated is used for demonstration database initialization. Build and integration test results have not yet been independently verified.
 
 Developed with AI assistance as a learning portfolio project.
